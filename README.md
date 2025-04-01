@@ -10,3 +10,6 @@ Librerias necesarias:
     pip install opencv-python pyautogui mediapipe deepface numpy
     pip install pyttsx3
 
+//PARA EJECUTAR EL PROGRAMA
+python main.py 
+
