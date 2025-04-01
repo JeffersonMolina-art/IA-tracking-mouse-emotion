@@ -11,5 +11,6 @@ Librerias necesarias:
     pip install pyttsx3
 
 //PARA EJECUTAR EL PROGRAMA
+
 python main.py 
 
