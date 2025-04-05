@@ -53,7 +53,13 @@ def apply_filter(frame, emotion):
 
 def save_emotion_capture(frame, emotion):
     global LAST_CAPTURED_EMOTION
-    if emotion in ["happy", "sad", "angry"] and emotion != LAST_CAPTURED_EMOTION:
+    if emotion in ["happy", "sad", "angry"] and emotion != LAST_CAPTURED_EMOTION and last_region:
+        x, y, w, h = last_region
+        # Dibuja el rectángulo y la emoción en la imagen guardada
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
+        cv2.putText(frame, emotion, (x, y - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+
         folder = "capturas_emociones"
         os.makedirs(folder, exist_ok=True)
         filename = f"{folder}/capture_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{emotion}.jpg"
@@ -80,14 +86,9 @@ def analyze_emotion_in_background(original_frame):
                 last_emotion = emotion
                 last_region = (x, y, w, h)
 
-                # Dibuja el rectángulo y texto
-                cv2.rectangle(original_frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
-                cv2.putText(original_frame, emotion, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
-
                 speak_emotion(emotion)
                 log_emotion(emotion)
-                save_emotion_capture(original_frame, emotion)
-                original_frame[:] = apply_filter(original_frame, emotion)
+                save_emotion_capture(original_frame.copy(), emotion)
 
     except Exception as e:
         print("Error detecting emotion:", e)

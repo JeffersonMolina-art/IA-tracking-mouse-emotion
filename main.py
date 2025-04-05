@@ -1,7 +1,7 @@
 import cv2
 import time
 from hand_tracking import HandTracker
-from emotion_detection import detect_emotion, last_region
+from emotion_detection import detect_emotion, last_region, apply_filter
 
 def get_emotion_color(emotion):
     colors = {
@@ -38,8 +38,6 @@ def main():
             break
 
         frame = cv2.flip(frame, 1)
-
-        # Procesamiento de gestos
         tracker.process(frame)
 
         # Solo analiza emociones cada FRAME_SKIP frames
@@ -47,8 +45,9 @@ def main():
             emotion = detect_emotion(frame)
         frame_count += 1
 
-        # Dibuja la región de emoción si está disponible
+        # Dibuja región y aplica filtro visual en el hilo principal
         if last_region and emotion:
+            frame[:] = apply_filter(frame, emotion)
             x, y, w, h = last_region
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
             cv2.putText(frame, emotion, (x, y - 10),
@@ -71,7 +70,6 @@ def main():
         cv2.putText(frame, f"FPS: {int(fps)}", (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-        # Mostrar frame
         cv2.imshow("Rastreo de Manos + Detección de Emocion", frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
