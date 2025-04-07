@@ -5,14 +5,38 @@ import csv
 import os
 import pyttsx3
 import threading
+import time
 
+# Variables globales
 LOG_FILE = "emotions_log.csv"
-VOICE_ENGINE = pyttsx3.init()
 DETECTED = {}
 LAST_CAPTURED_EMOTION = None
 last_emotion = None
 last_region = None
 analyzing = False
+
+# Cola manual de mensajes de voz
+voice_messages = []
+voice_lock = threading.Lock()
+
+# Hilo de voz único
+def voice_loop():
+    while True:
+        if voice_messages:
+            with voice_lock:
+                emotion, mensaje = voice_messages.pop(0)
+            try:
+                engine = pyttsx3.init()
+                engine.say(mensaje)
+                engine.runAndWait()
+                engine.stop()
+            except Exception as e:
+                print(f"[Error] Voz emoción '{emotion}':", e)
+        else:
+            time.sleep(0.1)
+
+# Iniciar el hilo de voz al arrancar
+threading.Thread(target=voice_loop, daemon=True).start()
 
 def speak_emotion(emotion):
     mensajes = {
@@ -23,12 +47,14 @@ def speak_emotion(emotion):
         "fear": "Todo va a estar bien.",
         "neutral": "Todo está tranquilo por ahora."
     }
-    if emotion not in DETECTED or (datetime.now() - DETECTED[emotion]).seconds > 20:
-        def speak():
-            VOICE_ENGINE.say(mensajes.get(emotion, ""))
-            VOICE_ENGINE.runAndWait()
-        threading.Thread(target=speak, daemon=True).start()
+
+    if emotion not in DETECTED or (datetime.now() - DETECTED[emotion]).seconds > 10:
+        mensaje = mensajes.get(emotion, "")
+        if mensaje:
+            with voice_lock:
+                voice_messages.append((emotion, mensaje))
         DETECTED[emotion] = datetime.now()
+        print(f"[Voz] Emoción detectada: {emotion}")
 
 def log_emotion(emotion):
     if not os.path.isfile(LOG_FILE):
@@ -55,7 +81,6 @@ def save_emotion_capture(frame, emotion):
     global LAST_CAPTURED_EMOTION
     if emotion in ["happy", "sad", "angry"] and emotion != LAST_CAPTURED_EMOTION and last_region:
         x, y, w, h = last_region
-        # Dibuja el rectángulo y la emoción en la imagen guardada
         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
         cv2.putText(frame, emotion, (x, y - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
@@ -88,6 +113,7 @@ def analyze_emotion_in_background(original_frame):
 
                 speak_emotion(emotion)
                 log_emotion(emotion)
+                apply_filter(original_frame.copy(), emotion)
                 save_emotion_capture(original_frame.copy(), emotion)
 
     except Exception as e:
@@ -101,10 +127,12 @@ def detect_emotion(frame):
 
 # Función reutilizable para entorno web
 def detect_emotion_from_frame(frame):
-    global last_emotion
-    global last_region
-    global analyzing
+    global last_emotion, last_region, analyzing
 
+    if analyzing:
+        return last_emotion
+
+    analyzing = True
     try:
         resized = cv2.resize(frame, (0, 0), fx=0.3, fy=0.3)
         results = DeepFace.analyze(resized, actions=['emotion'], enforce_detection=False)
@@ -120,9 +148,12 @@ def detect_emotion_from_frame(frame):
 
                 speak_emotion(emotion)
                 log_emotion(emotion)
-                save_emotion_capture(frame, emotion)
+                apply_filter(frame.copy(), emotion)
+                save_emotion_capture(frame.copy(), emotion)
 
         return last_emotion
     except Exception as e:
         print("Error en detección web:", e)
         return None
+    finally:
+        analyzing = False
