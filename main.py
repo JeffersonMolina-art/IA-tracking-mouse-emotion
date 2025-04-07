@@ -70,7 +70,7 @@ def main():
         cv2.putText(frame, f"FPS: {int(fps)}", (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-        cv2.imshow("Rastreo de Manos + Detección de Emocion", frame)
+        cv2.imshow("Rastreo de Manos + Deteccion de Emocion", frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break

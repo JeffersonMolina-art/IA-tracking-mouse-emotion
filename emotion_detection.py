@@ -98,3 +98,31 @@ def analyze_emotion_in_background(original_frame):
 def detect_emotion(frame):
     threading.Thread(target=analyze_emotion_in_background, args=(frame.copy(),), daemon=True).start()
     return last_emotion
+
+# Función reutilizable para entorno web
+def detect_emotion_from_frame(frame):
+    global last_emotion
+    global last_region
+    global analyzing
+
+    try:
+        resized = cv2.resize(frame, (0, 0), fx=0.3, fy=0.3)
+        results = DeepFace.analyze(resized, actions=['emotion'], enforce_detection=False)
+
+        for face in results:
+            emotion = face['dominant_emotion']
+            region = face['region']
+            x, y, w, h = [int(v * (1 / 0.3)) for v in (region['x'], region['y'], region['w'], region['h'])]
+
+            if x > 0 and y > 0:
+                last_emotion = emotion
+                last_region = (x, y, w, h)
+
+                speak_emotion(emotion)
+                log_emotion(emotion)
+                save_emotion_capture(frame, emotion)
+
+        return last_emotion
+    except Exception as e:
+        print("Error en detección web:", e)
+        return None
